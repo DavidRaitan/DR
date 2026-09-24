@@ -17,7 +17,10 @@ FRONTEND_DIR = _base / "frontend"
 DB_PATH = os.getenv("DB_PATH", str(_base / "just_wright.db"))
 
 MODEL_CLAUDE = "claude-opus-4-8"
-MODEL_GEMINI = "gemini-2.0-flash"
+GEMINI_MODELS = [m.strip() for m in os.getenv(
+    "GEMINI_MODELS", "gemini-flash-latest,gemini-3.6-flash,gemini-flash-lite-latest"
+).split(",") if m.strip()]
+GEMINI_TIMEOUT = int(os.getenv("GEMINI_TIMEOUT", "20"))
 
 FREE_DAILY_LIMIT = int(os.getenv("FREE_DAILY_LIMIT", "50"))
 AUTH_DAILY_LIMIT = int(os.getenv("AUTH_DAILY_LIMIT", "200"))

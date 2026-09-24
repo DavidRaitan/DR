@@ -1,8 +1,10 @@
 import json
 import logging
+import urllib.error
+import urllib.request
 from typing import Optional
 
-from .config import ACTIVE_PROVIDER, AI_ENABLED, ANTHROPIC_API_KEY, GEMINI_API_KEY, MODEL_CLAUDE, MODEL_GEMINI
+from .config import ACTIVE_PROVIDER, AI_ENABLED, ANTHROPIC_API_KEY, GEMINI_API_KEY, MODEL_CLAUDE, GEMINI_MODELS, GEMINI_TIMEOUT
 
 log = logging.getLogger(__name__)
 
@@ -36,32 +38,48 @@ def _claude_json(system: str, user: str, schema: dict, max_tokens: int) -> Optio
         return None
 
 
-def _gemini_text(system: str, user: str, max_tokens: int) -> Optional[str]:
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel(
-            model_name=MODEL_GEMINI, system_instruction=system,
-            generation_config={"max_output_tokens": max_tokens},
+def _gemini_call(system: str, user: str, max_tokens: int, json_mode: bool) -> Optional[str]:
+    gen = {"maxOutputTokens": max_tokens + 2048}
+    if json_mode:
+        gen["responseMimeType"] = "application/json"
+    body = json.dumps({
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": user}]}],
+        "generationConfig": gen,
+    }).encode()
+    for model in GEMINI_MODELS:
+        req = urllib.request.Request(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            data=body,
+            headers={"Content-Type": "application/json", "X-goog-api-key": GEMINI_API_KEY},
         )
-        return model.generate_content(user).text
-    except Exception as e:
-        log.warning("Gemini text failed: %s", e)
-        return None
+        try:
+            with urllib.request.urlopen(req, timeout=GEMINI_TIMEOUT) as resp:
+                data = json.load(resp)
+            parts = data["candidates"][0]["content"]["parts"]
+            return "".join(p.get("text", "") for p in parts) or None
+        except urllib.error.HTTPError as e:
+            log.warning("Gemini %s returned %s", model, e.code)
+            if e.code not in (404, 429, 500, 503):
+                return None
+        except Exception as e:
+            log.warning("Gemini %s failed: %s", model, e)
+    return None
+
+
+def _gemini_text(system: str, user: str, max_tokens: int) -> Optional[str]:
+    return _gemini_call(system, user, max_tokens, json_mode=False)
 
 
 def _gemini_json(system: str, user: str, schema: dict, max_tokens: int) -> Optional[dict]:
+    prompt = f"{user}\n\nRespond ONLY with valid JSON matching this schema:\n{json.dumps(schema)}"
+    text = _gemini_call(system, prompt, max_tokens, json_mode=True)
+    if not text:
+        return None
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        prompt = f"{user}\n\nRespond ONLY with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}"
-        model = genai.GenerativeModel(
-            model_name=MODEL_GEMINI, system_instruction=system,
-            generation_config={"max_output_tokens": max_tokens, "response_mime_type": "application/json"},
-        )
-        return json.loads(model.generate_content(prompt).text)
-    except Exception as e:
-        log.warning("Gemini JSON failed: %s", e)
+        return json.loads(text)
+    except json.JSONDecodeError:
+        log.warning("Gemini returned invalid JSON")
         return None
 
 
@@ -90,6 +108,6 @@ def provider_info() -> dict:
         "ai_enabled": AI_ENABLED,
         "provider": ACTIVE_PROVIDER,
         "model": MODEL_CLAUDE if ACTIVE_PROVIDER == "claude" else (
-            MODEL_GEMINI if ACTIVE_PROVIDER == "gemini" else None
+            GEMINI_MODELS[0] if ACTIVE_PROVIDER == "gemini" else None
         ),
     }
