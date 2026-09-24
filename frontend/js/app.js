@@ -3,6 +3,7 @@ const store = {
   view: 'spark',
   mentorId: 'architect',
   chatHistory: [],
+  last: {},
 };
 
 /* ── XP / Progress ─────────────────────────────────────────────────────── */
@@ -230,12 +231,6 @@ function setMain(html) {
   document.getElementById('main').innerHTML = html;
 }
 
-/* ── Save button helper ────────────────────────────────────────────────── */
-function saveBtn(kind, title, getContent) {
-  if (!Auth.user) return '';
-  return `<button class="btn-secondary mt" onclick="actions.saveItem('${kind}','${esc(title)}',${getContent})">💾 Save to My Work</button>`;
-}
-
 /* ── Views ─────────────────────────────────────────────────────────────── */
 const views = {
 
@@ -263,7 +258,7 @@ const views = {
         <div id="spark-output" class="output-box empty">Your spark will appear here…</div>
         <div id="spark-actions" class="hidden mt" style="display:flex;gap:.5rem;flex-wrap:wrap">
           <button class="btn-secondary" onclick="actions.continueSpark()">Continue this spark →</button>
-          <button class="btn-secondary" onclick="actions.saveItem('spark','Untitled Spark',()=>document.getElementById('spark-output').innerText)">💾 Save</button>
+          <button class="btn-secondary" onclick="actions.saveLast('spark')">💾 Save</button>
         </div>
         <div id="continue-output" class="hidden">
           <hr/>
@@ -510,10 +505,18 @@ const actions = {
     navigate('library');
   },
 
-  async saveItem(kind, title, contentFn) {
-    if (!Auth.user) { UI.openAuthModal(); return; }
-    let content;
-    try { content = typeof contentFn === 'function' ? contentFn() : contentFn; } catch (_) { content = String(contentFn); }
+  saveLast(kind) {
+    if (kind === 'spark') {
+      const text = [store.lastSpark, store.lastContinuation].filter(Boolean).join('\n\n');
+      return actions.saveItem('spark', (store.lastSpark || '').slice(0, 60), text);
+    }
+    const data = store.last[kind];
+    if (!data) { toast('Nothing to save.'); return; }
+    return actions.saveItem(kind, data.name || kind, JSON.stringify(data));
+  },
+
+  async saveItem(kind, title, content) {
+    if (!Auth.user) { toast('Sign in to save your work.'); UI.openAuthModal(); return; }
     if (!content || !content.trim()) { toast('Nothing to save.'); return; }
     try {
       await API.saveWork(kind, title, content);
@@ -549,11 +552,11 @@ const actions = {
         const keys = Object.keys(data).filter(k => k !== 'name');
         fields = [['Name', data.name], ...keys.map(k => [k.replace(/_/g,' '), data[k]])];
       }
-      const content = JSON.stringify(data);
+      store.last.world = data;
       out.innerHTML = `
         <div class="card">
           ${fieldGrid(fields)}
-          ${Auth.user ? `<button class="btn-secondary mt" onclick="actions.saveItem('world','${esc(data.name || tab)}',()=>JSON.stringify(${JSON.stringify(data)}))">💾 Save</button>` : ''}
+          <button class="btn-secondary mt" onclick="actions.saveLast('world')">💾 Save</button>
         </div>`;
       await addXP(20);
       refreshUsage();
@@ -575,10 +578,11 @@ const actions = {
         ['Contradiction', d.contradiction], ['Voice', d.voice], ['Physical', d.physical],
         ['Secret', d.secret], ['Arc', d.arc],
       ];
+      store.last.character = d;
       out.innerHTML = `
         <div class="card">
           ${fieldGrid(fields)}
-          ${Auth.user ? `<button class="btn-secondary mt" onclick="actions.saveItem('character','${esc(d.name)}',()=>JSON.stringify(${JSON.stringify(d)}))">💾 Save</button>` : ''}
+          <button class="btn-secondary mt" onclick="actions.saveLast('character')">💾 Save</button>
         </div>`;
       await addXP(20);
       refreshUsage();
