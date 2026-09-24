@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Just Wright</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+
+<!-- Auth Modal -->
+<div id="auth-modal" class="modal hidden">
+  <div class="modal-box">
+    <button class="modal-close" onclick="UI.closeAuthModal()">✕</button>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login" onclick="UI.switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" data-tab="register" onclick="UI.switchAuthTab('register')">Register</button>
+    </div>
+
+    <form id="login-form" class="auth-form" onsubmit="Auth.login(event)">
+      <h2>Welcome back</h2>
+      <label>Email</label>
+      <input type="email" name="email" required placeholder="you@example.com" />
+      <label>Password</label>
+      <input type="password" name="password" required placeholder="••••••••" />
+      <button type="submit" class="btn-primary">Sign In</button>
+      <p class="auth-error hidden" id="login-error"></p>
+    </form>
+
+    <form id="register-form" class="auth-form hidden" onsubmit="Auth.register(event)">
+      <h2>Create your account</h2>
+      <label>Username</label>
+      <input type="text" name="username" required placeholder="penname" />
+      <label>Email</label>
+      <input type="email" name="email" required placeholder="you@example.com" />
+      <label>Password <span class="hint">(min 8 chars)</span></label>
+      <input type="password" name="password" required placeholder="••••••••" />
+      <button type="submit" class="btn-primary">Create Account</button>
+      <p class="auth-error hidden" id="register-error"></p>
+    </form>
+  </div>
+</div>
+
+<!-- Shell -->
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-icon">✍</span>
+      <span class="brand-name">Just Wright</span>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view="spark">
+        <span class="nav-icon">⚡</span> Spark
+      </button>
+      <button class="nav-item" data-view="world">
+        <span class="nav-icon">🌍</span> World Builder
+      </button>
+      <button class="nav-item" data-view="character">
+        <span class="nav-icon">🎭</span> Character Forge
+      </button>
+      <button class="nav-item" data-view="structure">
+        <span class="nav-icon">📐</span> Structure
+      </button>
+      <button class="nav-item" data-view="library">
+        <span class="nav-icon">📚</span> Library
+      </button>
+      <button class="nav-item" data-view="mentors">
+        <span class="nav-icon">🧠</span> Mentors
+      </button>
+      <button class="nav-item" data-view="mywork">
+        <span class="nav-icon">📁</span> My Work
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="progress-bar-wrap">
+        <div class="progress-label">
+          <span id="level-name">Novice</span>
+          <span id="xp-display">0 XP</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+      <div id="auth-area">
+        <button class="btn-ghost full-width" onclick="UI.openAuthModal()">Sign In / Register</button>
+      </div>
+    </div>
+  </aside>
+
+  <main id="main" class="main"></main>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
